@@ -53,29 +53,38 @@ public class AutoCraft extends Module {
     public AutoCraft() {
         super(MeteorRejectsAddon.CATEGORY, "auto-craft", "Automatically crafts items.");
     }
-    
+    private final long craftingDelay = 1000; // Adjust this value to change the crafting delay in milliseconds
+    private long lastCraftingTime = 0;    
     @EventHandler
     private void onTick(TickEvent.Post event) {
         if (mc.interactionManager == null) return;
         if (items.get().isEmpty()) return;
 
         if (!(mc.player.currentScreenHandler instanceof CraftingScreenHandler)) return;
-        
 
-        if (antiDesync.get()) 
+        if (antiDesync.get())
             mc.player.getInventory().updateItems();
 
         // Danke schön GhostTypes
         // https://github.com/GhostTypes/orion/blob/main/src/main/java/me/ghosttypes/orion/modules/main/AutoBedCraft.java
         CraftingScreenHandler currentScreenHandler = (CraftingScreenHandler) mc.player.currentScreenHandler;
         List<Item> itemList = items.get();
-        List<RecipeResultCollection> recipeResultCollectionList  = mc.player.getRecipeBook().getOrderedResults();
+        List<RecipeResultCollection> recipeResultCollectionList = mc.player.getRecipeBook().getOrderedResults();
+
+        // Check if enough time has passed since the last crafting action
+        if (System.currentTimeMillis() - lastCraftingTime < craftingDelay) return;
+
+        // Iterate over recipes to perform crafting
         for (RecipeResultCollection recipeResultCollection : recipeResultCollectionList) {
             for (RecipeEntry<?> recipe : recipeResultCollection.getRecipes(true)) {
                 if (!itemList.contains(recipe.value().getResult(mc.world.getRegistryManager()).getItem())) continue;
                 mc.interactionManager.clickRecipe(currentScreenHandler.syncId, recipe, craftAll.get());
                 mc.interactionManager.clickSlot(currentScreenHandler.syncId, 0, 1,
                         drop.get() ? SlotActionType.THROW : SlotActionType.QUICK_MOVE, mc.player);
+                
+                // Update last crafting time
+                lastCraftingTime = System.currentTimeMillis();
+                return; // Exit the method after performing one crafting action
             }
         }
     }
